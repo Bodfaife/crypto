@@ -1,5 +1,16 @@
 import React, { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  SafeAreaView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { Session } from "@supabase/supabase-js";
+
+import { supabase } from "./src/lib/supabase";
 
 import WelcomeScreen from "./src/screens/WelcomeScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
@@ -44,7 +55,7 @@ type Preferences = {
 };
 
 const PREFERENCES_KEY =
-"@crypto_app_preferences";
+"@kreep_app_preferences";
 
 const DEFAULT_PREFERENCES: Preferences = {
   currency: "USD",
@@ -57,6 +68,12 @@ const DEFAULT_PREFERENCES: Preferences = {
 export default function App() {
   const [screen, setScreen] =
   useState<Screen>("welcome");
+
+  const [session, setSession] =
+  useState<Session | null>(null);
+
+  const [authLoading, setAuthLoading] =
+  useState(true);
 
   const [preferences, setPreferences] =
   useState<Preferences>(
@@ -81,10 +98,10 @@ export default function App() {
   useState("");
 
   /*
-   * LOAD SAVED PREFERENCES
+   * LOAD LOCAL PREFERENCES
    */
   useEffect(() => {
-    const loadPreferences = async () => {
+    const loadLocalPreferences = async () => {
       try {
         const saved =
         await AsyncStorage.getItem(
@@ -92,8 +109,7 @@ export default function App() {
         );
 
         if (saved) {
-          const parsed =
-          JSON.parse(saved);
+          const parsed = JSON.parse(saved);
 
           setPreferences({
             ...DEFAULT_PREFERENCES,
@@ -102,7 +118,7 @@ export default function App() {
         }
       } catch (error) {
         console.error(
-          "Failed to load preferences:",
+          "Failed to load local preferences:",
           error
         );
       } finally {
@@ -110,11 +126,15 @@ export default function App() {
       }
     };
 
-    loadPreferences();
+    loadLocalPreferences();
   }, []);
 
   /*
-   * SAVE PREFERENCES
+   * SAVE LOCAL PREFERENCES
+   *
+   * This gives us fast local persistence.
+   * Supabase is also updated below when a
+   * logged-in user changes a preference.
    */
   useEffect(() => {
     if (!preferencesLoaded) {
@@ -129,7 +149,7 @@ export default function App() {
         );
       } catch (error) {
         console.error(
-          "Failed to save preferences:",
+          "Failed to save local preferences:",
           error
         );
       }
@@ -142,11 +162,325 @@ export default function App() {
   ]);
 
   /*
-   * Don't render the app until saved
-   * preferences have been loaded.
+   * RESTORE SUPABASE SESSION
    */
-  if (!preferencesLoaded) {
-    return null;
+  useEffect(() => {
+    let mounted = true;
+
+    const restoreSession = async () => {
+      try {
+        const {
+          data,
+          error,
+        } = await supabase.auth.getSession();
+
+        if (error) {
+          console.error(
+            "Failed to restore session:",
+            error
+          );
+        }
+
+        if (!mounted) {
+          return;
+        }
+
+        setSession(data.session);
+
+        if (data.session) {
+          await loadUserData(
+            data.session.user.id
+          );
+        }
+      } catch (error) {
+        console.error(
+          "Session restore error:",
+          error
+        );
+      } finally {
+        if (mounted) {
+          setAuthLoading(false);
+        }
+      }
+    };
+
+    restoreSession();
+
+    /*
+     * Listen for login/logout/session changes.
+     */
+    const {
+      data: authListener,
+    } = supabase.auth.onAuthStateChange(
+      async (_event, newSession) => {
+        if (!mounted) {
+          return;
+        }
+
+        setSession(newSession);
+
+        if (newSession) {
+          await loadUserData(
+            newSession.user.id
+          );
+        } else {
+          setSignupUsername("");
+        }
+      }
+    );
+
+    return () => {
+      mounted = false;
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
+
+  /*
+   * LOAD USER PROFILE + SETTINGS
+   */
+  const loadUserData = async (
+    userId: string
+  ) => {
+    try {
+      const [
+        profileResult,
+        settingsResult,
+      ] = await Promise.all([
+        supabase
+        .from("profiles")
+        .select(
+          "username, currency"
+        )
+        .eq("id", userId)
+        .maybeSingle(),
+
+                            supabase
+                            .from("user_settings")
+                            .select(
+                              `
+                              notifications_enabled,
+                              biometric_enabled,
+                              hide_balance,
+                              dark_mode
+                              `
+                            )
+                            .eq("user_id", userId)
+                            .maybeSingle(),
+      ]);
+
+      if (profileResult.error) {
+        console.error(
+          "Failed to load profile:",
+          profileResult.error
+        );
+      }
+
+      if (settingsResult.error) {
+        console.error(
+          "Failed to load settings:",
+          settingsResult.error
+        );
+      }
+
+      const profile =
+      profileResult.data;
+
+      const settings =
+      settingsResult.data;
+
+      if (profile) {
+        setSignupUsername(
+          profile.username
+        );
+      }
+
+      setPreferences(
+        (previous) => ({
+          ...previous,
+
+          ...(profile?.currency
+          ? {
+            currency:
+            profile.currency === "EUR"
+            ? "EUR"
+            : "USD",
+          }
+          : {}),
+
+          ...(settings
+          ? {
+            notificationsEnabled:
+            settings.notifications_enabled,
+            biometricEnabled:
+            settings.biometric_enabled,
+            hideBalance:
+            settings.hide_balance,
+            darkMode:
+            settings.dark_mode,
+          }
+          : {}),
+        })
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load user data:",
+        error
+      );
+    }
+  };
+
+  /*
+   * UPDATE SUPABASE SETTINGS
+   */
+  const updateUserSettings = async (
+    updatedPreferences: Preferences
+  ) => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    try {
+      const {
+        error,
+      } = await supabase
+      .from("user_settings")
+      .upsert(
+        {
+          user_id:
+          session.user.id,
+          notifications_enabled:
+          updatedPreferences.notificationsEnabled,
+          biometric_enabled:
+          updatedPreferences.biometricEnabled,
+          hide_balance:
+          updatedPreferences.hideBalance,
+          dark_mode:
+          updatedPreferences.darkMode,
+          updated_at:
+          new Date().toISOString(),
+        },
+        {
+          onConflict:
+          "user_id",
+        }
+      );
+
+      if (error) {
+        console.error(
+          "Failed to update settings:",
+          error
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Settings update error:",
+        error
+      );
+    }
+  };
+
+  /*
+   * UPDATE CURRENCY IN SUPABASE
+   */
+  const updateUserCurrency = async (
+    currency: Currency
+  ) => {
+    if (!session?.user?.id) {
+      return;
+    }
+
+    try {
+      const {
+        error,
+      } = await supabase
+      .from("profiles")
+      .update({
+        currency,
+        updated_at:
+        new Date().toISOString(),
+      })
+      .eq(
+        "id",
+        session.user.id
+      );
+
+      if (error) {
+        console.error(
+          "Failed to update currency:",
+          error
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Currency update error:",
+        error
+      );
+    }
+  };
+
+  /*
+   * CHANGE PREFERENCE
+   */
+  const changePreferences = (
+    updater: (
+      previous: Preferences
+    ) => Preferences
+  ) => {
+    setPreferences(
+      (previous) => {
+        const next =
+        updater(previous);
+
+        /*
+         * Save settings asynchronously.
+         */
+        updateUserSettings(next);
+
+        /*
+         * Currency belongs in profiles.
+         */
+        if (
+          next.currency !==
+          previous.currency
+        ) {
+          updateUserCurrency(
+            next.currency
+          );
+        }
+
+        return next;
+      }
+    );
+  };
+
+  /*
+   * WAIT FOR LOCAL STORAGE + AUTH
+   */
+  if (
+    !preferencesLoaded ||
+    authLoading
+  ) {
+    return (
+      <SafeAreaView
+      style={styles.loadingContainer}
+      >
+      <View
+      style={styles.loadingContent}
+      >
+      <Text style={styles.logo}>
+      Kreep
+      </Text>
+
+      <ActivityIndicator
+      size="small"
+      color="#7CFFA0"
+      style={{
+        marginTop: 18,
+      }}
+      />
+      </View>
+      </SafeAreaView>
+    );
   }
 
   /*
@@ -161,22 +495,91 @@ export default function App() {
       onSignIn={() =>
         setScreen("signin")
       }
-      onSignUp={(
+      onSignUp={async (
         username,
         email,
         password
       ) => {
-        console.log(
-          "Account created:",
-          {
-            username,
-            email,
-            password,
-          }
-        );
+        try {
+          const {
+            data,
+            error,
+          } =
+          await supabase.auth.signUp(
+            {
+              email,
+              password,
+              options: {
+                data: {
+                  username,
+                },
+              },
+            }
+          );
 
-        setSignupUsername(username);
-        setScreen("profileSetup");
+          if (error) {
+            Alert.alert(
+              "Sign Up Failed",
+              error.message
+            );
+            return;
+          }
+
+          if (!data.user) {
+            Alert.alert(
+              "Sign Up Failed",
+              "We couldn't create your account."
+            );
+            return;
+          }
+
+          setSignupUsername(
+            username
+          );
+
+          /*
+           * If email confirmation is disabled,
+           * Supabase gives us a session immediately.
+           *
+           * If confirmation is enabled, the user
+           * will need to verify their email first.
+           */
+          if (!data.session) {
+            Alert.alert(
+              "Check your email",
+              "Your account was created. Please verify your email, then sign in.",
+              [
+                {
+                  text: "OK",
+                  onPress: () =>
+                  setScreen(
+                    "signin"
+                  ),
+                },
+              ]
+            );
+
+            return;
+          }
+
+          setSession(
+            data.session
+          );
+
+          setScreen(
+            "profileSetup"
+          );
+        } catch (error) {
+          console.error(
+            "Sign up error:",
+            error
+          );
+
+          Alert.alert(
+            "Sign Up Failed",
+            "Something went wrong while creating your account."
+          );
+        }
       }}
       />
     );
@@ -185,31 +588,148 @@ export default function App() {
   /*
    * PROFILE SETUP
    */
-  if (screen === "profileSetup") {
+  if (
+    screen === "profileSetup"
+  ) {
     return (
       <ProfileSetupScreen
-      username={signupUsername}
+      username={
+        signupUsername
+      }
       onBack={() =>
         setScreen("signup")
       }
-      onContinue={(profile) => {
-        console.log(
-          "Profile completed:",
-          profile
-        );
+      onContinue={async (
+        profile
+      ) => {
+        if (
+          !session?.user?.id
+        ) {
+          Alert.alert(
+            "Session Error",
+            "Your account session could not be found. Please sign in again."
+          );
 
-        setPreferences(
-          (previous) => ({
-            ...previous,
-            currency:
-            profile.currency ===
-            "Euro"
-            ? "EUR"
-            : "USD",
-          })
-        );
+          setScreen("signin");
+          return;
+        }
 
-        setScreen("home");
+        try {
+          const currency: Currency =
+          profile.currency ===
+          "Euro"
+          ? "EUR"
+          : "USD";
+
+          /*
+           * Save profile.
+           */
+          const {
+            error:
+            profileError,
+          } = await supabase
+          .from("profiles")
+          .upsert(
+            {
+              id:
+              session.user.id,
+              username:
+              signupUsername,
+              email:
+              session.user
+              .email ??
+              null,
+              currency,
+              updated_at:
+              new Date().toISOString(),
+            },
+            {
+              onConflict:
+              "id",
+            }
+          );
+
+          if (profileError) {
+            console.error(
+              "Profile save error:",
+              profileError
+            );
+
+            Alert.alert(
+              "Profile Error",
+              profileError.message
+            );
+
+            return;
+          }
+
+          /*
+           * Create default settings.
+           */
+          const {
+            error:
+            settingsError,
+          } = await supabase
+          .from(
+            "user_settings"
+          )
+          .upsert(
+            {
+              user_id:
+              session.user.id,
+              notifications_enabled:
+              true,
+              biometric_enabled:
+              false,
+              hide_balance:
+              false,
+              dark_mode:
+              true,
+              updated_at:
+              new Date().toISOString(),
+            },
+            {
+              onConflict:
+              "user_id",
+            }
+          );
+
+          if (settingsError) {
+            console.error(
+              "Settings save error:",
+              settingsError
+            );
+
+            Alert.alert(
+              "Settings Error",
+              settingsError.message
+            );
+
+            return;
+          }
+
+          /*
+           * Update local state too.
+           */
+          setPreferences(
+            (previous) => ({
+              ...previous,
+              currency,
+            })
+          );
+
+          setScreen("home");
+        } catch (error) {
+          console.error(
+            "Profile setup error:",
+            error
+          );
+
+          Alert.alert(
+            "Error",
+            "We couldn't save your profile."
+          );
+        }
       }}
       />
     );
@@ -221,8 +741,12 @@ export default function App() {
   if (screen === "home") {
     return (
       <HomeScreen
-      username={signupUsername}
-      currency={preferences.currency}
+      username={
+        signupUsername
+      }
+      currency={
+        preferences.currency
+      }
       onMarkets={() =>
         setScreen("markets")
       }
@@ -244,7 +768,9 @@ export default function App() {
         setScreen("activity")
       }
       onSwap={() => {
-        setSwapReturnScreen("home");
+        setSwapReturnScreen(
+          "home"
+        );
         setScreen("swap");
       }}
       />
@@ -257,7 +783,9 @@ export default function App() {
   if (screen === "markets") {
     return (
       <MarketsScreen
-      currency={preferences.currency}
+      currency={
+        preferences.currency
+      }
       onHome={() =>
         setScreen("home")
       }
@@ -279,7 +807,9 @@ export default function App() {
         setScreen("profile")
       }
       onSwap={() => {
-        setSwapReturnScreen("markets");
+        setSwapReturnScreen(
+          "markets"
+        );
         setScreen("swap");
       }}
       />
@@ -293,18 +823,26 @@ export default function App() {
     return (
       <AssetDetailsScreen
       symbol={selectedAsset}
-      currency={preferences.currency}
+      currency={
+        preferences.currency
+      }
       onBack={() =>
         setScreen("markets")
       }
       onBuy={() =>
-        console.log("Buy pressed")
+        console.log(
+          "Buy pressed"
+        )
       }
       onSell={() =>
-        console.log("Sell pressed")
+        console.log(
+          "Sell pressed"
+        )
       }
       onSwap={() => {
-        setSwapReturnScreen("asset");
+        setSwapReturnScreen(
+          "asset"
+        );
         setScreen("swap");
       }}
       />
@@ -318,7 +856,9 @@ export default function App() {
     return (
       <SwapScreen
       onBack={() =>
-        setScreen(swapReturnScreen)
+        setScreen(
+          swapReturnScreen
+        )
       }
       onSwapComplete={(
         fromAsset,
@@ -347,9 +887,15 @@ export default function App() {
       onBack={() =>
         setScreen("home")
       }
-      onOpenTransaction={(id) => {
-        setSelectedTransaction(id);
-        setScreen("transaction");
+      onOpenTransaction={(
+        id
+      ) => {
+        setSelectedTransaction(
+          id
+        );
+        setScreen(
+          "transaction"
+        );
       }}
       />
     );
@@ -358,7 +904,9 @@ export default function App() {
   /*
    * TRANSACTION DETAILS
    */
-  if (screen === "transaction") {
+  if (
+    screen === "transaction"
+  ) {
     return (
       <TransactionDetailsScreen
       transactionId={
@@ -377,7 +925,9 @@ export default function App() {
   if (screen === "profile") {
     return (
       <ProfileScreen
-      username={signupUsername}
+      username={
+        signupUsername
+      }
       onBack={() =>
         setScreen("home")
       }
@@ -410,16 +960,46 @@ export default function App() {
         )
       }
       onSignOut={async () => {
-        setSignupUsername("");
-        setPreferences(
-          DEFAULT_PREFERENCES
-        );
+        try {
+          const {
+            error,
+          } =
+          await supabase.auth.signOut();
 
-        await AsyncStorage.removeItem(
-          PREFERENCES_KEY
-        );
+          if (error) {
+            Alert.alert(
+              "Sign Out Failed",
+              error.message
+            );
+            return;
+          }
 
-        setScreen("welcome");
+          setSignupUsername("");
+          setSession(null);
+
+          /*
+           * Keep the local preference cache.
+           * The next logged-in user's settings
+           * will be loaded from Supabase.
+           */
+          setPreferences(
+            DEFAULT_PREFERENCES
+          );
+
+          setScreen(
+            "welcome"
+          );
+        } catch (error) {
+          console.error(
+            "Sign out error:",
+            error
+          );
+
+          Alert.alert(
+            "Sign Out Failed",
+            "Something went wrong while signing out."
+          );
+        }
       }}
       />
     );
@@ -439,8 +1019,10 @@ export default function App() {
         preferences.currency
       }
 
-      onCurrencyChange={(value) => {
-        setPreferences(
+      onCurrencyChange={(
+        value
+      ) => {
+        changePreferences(
           (previous) => ({
             ...previous,
             currency: value,
@@ -455,7 +1037,7 @@ export default function App() {
       onNotificationsChange={(
         value
       ) => {
-        setPreferences(
+        changePreferences(
           (previous) => ({
             ...previous,
             notificationsEnabled:
@@ -468,8 +1050,10 @@ export default function App() {
         preferences.biometricEnabled
       }
 
-      onBiometricChange={(value) => {
-        setPreferences(
+      onBiometricChange={(
+        value
+      ) => {
+        changePreferences(
           (previous) => ({
             ...previous,
             biometricEnabled:
@@ -482,11 +1066,14 @@ export default function App() {
         preferences.hideBalance
       }
 
-      onHideBalanceChange={(value) => {
-        setPreferences(
+      onHideBalanceChange={(
+        value
+      ) => {
+        changePreferences(
           (previous) => ({
             ...previous,
-            hideBalance: value,
+            hideBalance:
+            value,
           })
         );
       }}
@@ -495,8 +1082,10 @@ export default function App() {
         preferences.darkMode
       }
 
-      onDarkModeChange={(value) => {
-        setPreferences(
+      onDarkModeChange={(
+        value
+      ) => {
+        changePreferences(
           (previous) => ({
             ...previous,
             darkMode: value,
@@ -543,16 +1132,64 @@ export default function App() {
       onCreateAccount={() =>
         setScreen("signup")
       }
-      onSignIn={(
+      onSignIn={async (
         identifier,
         password
       ) => {
-        console.log("Sign in:", {
-          identifier,
-          password,
-        });
+        try {
+          /*
+           * This screen accepts an identifier.
+           * Supabase email/password authentication
+           * requires the email address.
+           */
+          const {
+            data,
+            error,
+          } =
+          await supabase.auth.signInWithPassword(
+            {
+              email:
+              identifier.trim(),
+                                                 password,
+            }
+          );
 
-        setScreen("home");
+          if (error) {
+            Alert.alert(
+              "Sign In Failed",
+              error.message
+            );
+            return;
+          }
+
+          if (!data.session) {
+            Alert.alert(
+              "Sign In Failed",
+              "No active session was created."
+            );
+            return;
+          }
+
+          setSession(
+            data.session
+          );
+
+          await loadUserData(
+            data.session.user.id
+          );
+
+          setScreen("home");
+        } catch (error) {
+          console.error(
+            "Sign in error:",
+            error
+          );
+
+          Alert.alert(
+            "Sign In Failed",
+            "Something went wrong while signing in."
+          );
+        }
       }}
       onForgotPassword={() =>
         console.log(
@@ -577,3 +1214,23 @@ export default function App() {
     />
   );
 }
+
+const styles = StyleSheet.create({
+  loadingContainer: {
+    flex: 1,
+    backgroundColor: "#08110A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  loadingContent: {
+    alignItems: "center",
+  },
+
+  logo: {
+    color: "#7CFFA0",
+    fontSize: 30,
+    fontWeight: "800",
+    letterSpacing: -1,
+  },
+});
