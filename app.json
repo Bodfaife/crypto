@@ -1,0 +1,15 @@
+{
+  "expo": {
+  "name": "Kreep",
+  "slug": "Kreep",
+  "icon": "./assets/Kreep.png",
+    "extra": {
+      "eas": {
+        "projectId": "40e3a0b0-3fdd-4e31-8f0c-63697c872ef9"
+      }
+    },
+    "android": {
+      "package": "com.faithbode.crypto"
+    }
+  }
+}
