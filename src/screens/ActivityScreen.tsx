@@ -49,8 +49,8 @@ const transactions: Transaction[] = [
         asset: "Bitcoin",
         symbol: "BTC",
         amount: "+0.024 BTC",
-        value: "₦4,320,000",
-        date: "Today • 2:45 PM",
+        value: "$2,609.82",
+        date: "January 18, 2026 • 2:45 PM",
         status: "completed",
     },
 {
@@ -59,8 +59,8 @@ const transactions: Transaction[] = [
     asset: "Ethereum",
     symbol: "ETH",
     amount: "0.8 ETH → SOL",
-    value: "₦1,180,000",
-    date: "Today • 11:18 AM",
+    value: "$3,187.70",
+    date: "March 11, 2026 • 11:18 AM",
     status: "completed",
 },
 {
@@ -69,8 +69,8 @@ const transactions: Transaction[] = [
     asset: "USDT",
     symbol: "USDT",
     amount: "+500 USDT",
-    value: "₦810,500",
-    date: "Yesterday",
+    value: "$500.00",
+    date: "December 7, 2025 • 4:12 PM",
     status: "completed",
 },
 {
@@ -79,8 +79,8 @@ const transactions: Transaction[] = [
     asset: "Solana",
     symbol: "SOL",
     amount: "-12 SOL",
-    value: "₦965,000",
-    date: "22 Sept",
+    value: "$2,657.64",
+    date: "August 24, 2025 • 9:41 AM",
     status: "pending",
 },
 {
@@ -89,8 +89,8 @@ const transactions: Transaction[] = [
     asset: "Bitcoin",
     symbol: "BTC",
     amount: "-0.006 BTC",
-    value: "₦1,052,000",
-    date: "20 Sept",
+    value: "$652.45",
+    date: "May 16, 2025 • 6:24 PM",
     status: "failed",
 },
 ];
@@ -275,7 +275,8 @@ export default function ActivityScreen({
         onPress={() => setFilter(value)}
         style={[
             styles.chip,
-            filter === value && styles.chipActive,
+            filter === value &&
+            styles.chipActive,
         ]}
         >
         <Text
@@ -296,7 +297,6 @@ export default function ActivityScreen({
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
         >
-        {/* Header */}
         <View style={styles.header}>
         <Pressable
         onPress={onBack}
@@ -312,10 +312,11 @@ export default function ActivityScreen({
         Activity
         </Text>
 
-        <View style={styles.headerSpacer} />
+        <View
+        style={styles.headerSpacer}
+        />
         </View>
 
-        {/* Summary */}
         <View style={styles.summary}>
         <View style={styles.summaryCard}>
         <ArrowDownLeft
@@ -363,44 +364,27 @@ export default function ActivityScreen({
         </View>
         </View>
 
-        {/* Filters */}
         <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.filterRow}
+        contentContainerStyle={
+            styles.filterRow
+        }
         >
-        <Chip
-        value="all"
-        label="All"
-        />
-
-        <Chip
-        value="buy"
-        label="Buy"
-        />
-
-        <Chip
-        value="sell"
-        label="Sell"
-        />
-
-        <Chip
-        value="swap"
-        label="Swap"
-        />
-
+        <Chip value="all" label="All" />
+        <Chip value="buy" label="Buy" />
+        <Chip value="sell" label="Sell" />
+        <Chip value="swap" label="Swap" />
         <Chip
         value="deposit"
         label="Deposit"
         />
-
         <Chip
         value="withdraw"
         label="Withdraw"
         />
         </ScrollView>
 
-        {/* Transactions */}
         <View style={styles.section}>
         <Text style={styles.sectionTitle}>
         Recent Transactions
@@ -408,27 +392,39 @@ export default function ActivityScreen({
 
         {filtered.length === 0 ? (
             <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}>
+            <View
+            style={styles.emptyIcon}
+            >
             <Wallet
             size={24}
             color="#7CFFA0"
             />
             </View>
 
-            <Text style={styles.emptyTitle}>
+            <Text
+            style={
+                styles.emptyTitle
+            }
+            >
             No transactions
             </Text>
 
-            <Text style={styles.emptyText}>
-            There are no transactions in this
-            category yet.
+            <Text
+            style={
+                styles.emptyText
+            }
+            >
+            There are no transactions
+            in this category yet.
             </Text>
             </View>
         ) : (
             filtered.map((item) => (
                 <Pressable
                 key={item.id}
-                style={({ pressed }) => [
+                style={({
+                    pressed,
+                }) => [
                     styles.card,
                     pressed &&
                     styles.cardPressed,
@@ -439,8 +435,9 @@ export default function ActivityScreen({
                     )
                 }
                 >
-                {/* Left */}
-                <View style={styles.left}>
+                <View
+                style={styles.left}
+                >
                 <View
                 style={
                     styles.iconCircle
@@ -505,7 +502,9 @@ export default function ActivityScreen({
                 </View>
 
                 <Text
-                style={styles.date}
+                style={
+                    styles.date
+                }
                 >
                 {item.date}
                 </Text>
@@ -516,7 +515,6 @@ export default function ActivityScreen({
                 </View>
                 </View>
 
-                {/* Right */}
                 <View
                 style={styles.right}
                 >

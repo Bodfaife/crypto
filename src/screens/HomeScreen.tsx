@@ -35,14 +35,20 @@ interface HomeScreenProps {
     onAssetPress?: (symbol: string) => void;
 }
 
+/*
+ * Portfolio assets
+ *
+ * The holdings have been increased so the dashboard
+ * represents a high-value portfolio above $7 million.
+ */
 const assets = [
     {
         symbol: "BTC",
         name: "Bitcoin",
         price: 108742.38,
         change: 2.84,
-        amount: "0.03842",
-        value: 4178.27,
+        amount: "28.5",
+        value: 3099142.83,
         icon: "₿",
         iconBackground: "#2A2115",
         iconColor: "#F7931A",
@@ -52,8 +58,8 @@ const assets = [
     name: "Ethereum",
     price: 3984.62,
     change: 1.67,
-    amount: "1.284",
-    value: 5116.65,
+    amount: "600",
+    value: 2390772.00,
     icon: "Ξ",
     iconBackground: "#171C2A",
     iconColor: "#8EA2FF",
@@ -63,8 +69,8 @@ const assets = [
     name: "Solana",
     price: 221.47,
     change: -0.82,
-    amount: "8.42",
-    value: 1864.79,
+    amount: "5000",
+    value: 1107350.00,
     icon: "S",
     iconBackground: "#17251F",
     iconColor: "#7CFFA0",
@@ -74,8 +80,8 @@ const assets = [
     name: "Tether",
     price: 1,
     change: 0.01,
-    amount: "2380.50",
-    value: 2380.5,
+    amount: "750000",
+    value: 750000,
     icon: "₮",
     iconBackground: "#15251F",
     iconColor: "#50AF95",
@@ -89,7 +95,7 @@ const activity = [
         subtitle: "BTC",
         amount: "+0.0042 BTC",
         value: "+$456.72",
-        time: "Today, 10:42 AM",
+        time: "Jan 18, 2026",
     },
 {
     type: "swap",
@@ -97,7 +103,7 @@ const activity = [
     subtitle: "ETH → USDT",
     amount: "0.25 ETH",
     value: "$996.16",
-    time: "Yesterday, 4:18 PM",
+    time: "Mar 11, 2026",
 },
 {
     type: "sent",
@@ -105,7 +111,7 @@ const activity = [
     subtitle: "SOL",
     amount: "-2.00 SOL",
     value: "-$442.94",
-    time: "Sep 22, 2:31 PM",
+    time: "Dec 7, 2025",
 },
 ];
 
@@ -154,7 +160,9 @@ export default function HomeScreen({
         {/* Header */}
         <View style={styles.header}>
         <View>
-        <Text style={styles.greeting}>Welcome back</Text>
+        <Text style={styles.greeting}>
+        Welcome back
+        </Text>
 
         <Text style={styles.username}>
         @{username}
@@ -175,7 +183,9 @@ export default function HomeScreen({
         color="#DCE4DE"
         />
 
-        <View style={styles.notificationDot} />
+        <View
+        style={styles.notificationDot}
+        />
         </Pressable>
 
         <Pressable
@@ -186,7 +196,11 @@ export default function HomeScreen({
         onPress={onProfile}
         hitSlop={8}
         >
-        <Text style={styles.profileAvatarText}>
+        <Text
+        style={
+            styles.profileAvatarText
+        }
+        >
         {firstLetter}
         </Text>
         </Pressable>
@@ -266,73 +280,90 @@ export default function HomeScreen({
             </View>
 
             <View style={styles.chart}>
-            {chartPoints.map((point, index) => {
-                const previous =
-                chartPoints[index - 1];
+            {chartPoints.map(
+                (point, index) => {
+                    const previous =
+                    chartPoints[
+                        index - 1
+                    ];
 
-                const difference =
-                index === 0
-                ? 0
-                : point - previous;
+                    const difference =
+                    index === 0
+                    ? 0
+                    : point -
+                    previous;
 
-                return (
-                    <View
-                    key={index}
-                    style={[
-                        styles.chartPoint,
-                        {
-                            height: `${Math.max(
-                                point,
-                                35
-                            )}%`,
-                            marginTop:
-                            difference < 0
-                            ? Math.abs(
-                                difference
-                            ) * 0.4
-                            : 0,
-                        },
-                    ]}
-                    >
-                    <View style={styles.chartDot} />
-                    </View>
-                );
-            })}
+                    return (
+                        <View
+                        key={index}
+                        style={[
+                            styles.chartPoint,
+                            {
+                                height: `${Math.max(
+                                    point,
+                                    35
+                                )}%`,
+                                marginTop:
+                                difference <
+                                0
+                                ? Math.abs(
+                                    difference
+                                ) *
+                                0.4
+                                : 0,
+                            },
+                        ]}
+                        >
+                        <View
+                        style={
+                            styles.chartDot
+                        }
+                        />
+                        </View>
+                    );
+                }
+            )}
             </View>
             </View>
 
             {/* Chart Periods */}
             <View style={styles.periodRow}>
-            {["1D", "1W", "1M", "3M", "1Y"].map(
-                (period) => {
-                    const selected =
-                    chartPeriod === period;
+            {[
+                "1D",
+                "1W",
+                "1M",
+                "3M",
+                "1Y",
+            ].map((period) => {
+                const selected =
+                chartPeriod === period;
 
-                    return (
-                        <Pressable
-                        key={period}
-                        style={[
-                            styles.periodButton,
-                            selected &&
-                            styles.periodButtonSelected,
-                        ]}
-                        onPress={() =>
-                            setChartPeriod(period)
-                        }
-                        >
-                        <Text
-                        style={[
-                            styles.periodText,
-                            selected &&
-                            styles.periodTextSelected,
-                        ]}
-                        >
-                        {period}
-                        </Text>
-                        </Pressable>
-                    );
-                }
-            )}
+                return (
+                    <Pressable
+                    key={period}
+                    style={[
+                        styles.periodButton,
+                        selected &&
+                        styles.periodButtonSelected,
+                    ]}
+                    onPress={() =>
+                        setChartPeriod(
+                            period
+                        )
+                    }
+                    >
+                    <Text
+                    style={[
+                        styles.periodText,
+                        selected &&
+                        styles.periodTextSelected,
+                    ]}
+                    >
+                    {period}
+                    </Text>
+                    </Pressable>
+                );
+            })}
             </View>
             </View>
 
@@ -411,10 +442,13 @@ export default function HomeScreen({
                 key={asset.symbol}
                 style={({ pressed }) => [
                     styles.assetCard,
-                    pressed && styles.cardPressed,
+                    pressed &&
+                    styles.cardPressed,
                 ]}
                 onPress={() =>
-                    onAssetPress?.(asset.symbol)
+                    onAssetPress?.(
+                        asset.symbol
+                    )
                 }
                 >
                 <View
@@ -438,18 +472,34 @@ export default function HomeScreen({
                 </Text>
                 </View>
 
-                <View style={styles.assetInfo}>
-                <Text style={styles.assetSymbol}>
+                <View
+                style={styles.assetInfo}
+                >
+                <Text
+                style={
+                    styles.assetSymbol
+                }
+                >
                 {asset.symbol}
                 </Text>
 
-                <Text style={styles.assetName}>
+                <Text
+                style={
+                    styles.assetName
+                }
+                >
                 {asset.name}
                 </Text>
                 </View>
 
-                <View style={styles.assetValues}>
-                <Text style={styles.assetValue}>
+                <View
+                style={styles.assetValues}
+                >
+                <Text
+                style={
+                    styles.assetValue
+                }
+                >
                 {currencySymbol}
                 {asset.value.toLocaleString(
                     "en-US",
@@ -460,29 +510,45 @@ export default function HomeScreen({
                 )}
                 </Text>
 
-                <View style={styles.assetBottomRow}>
-                <Text style={styles.assetAmount}>
-                {asset.amount} {asset.symbol}
+                <View
+                style={
+                    styles.assetBottomRow
+                }
+                >
+                <Text
+                style={
+                    styles.assetAmount
+                }
+                >
+                {asset.amount}{" "}
+                {asset.symbol}
                 </Text>
 
                 <Text
                 style={[
                     styles.assetChange,
-                    asset.change < 0 &&
+                    asset.change <
+                    0 &&
                     styles.negativeChange,
                 ]}
                 >
-                {asset.change >= 0 ? "+" : ""}
-                {asset.change.toFixed(2)}%
-                </Text>
-                </View>
-                </View>
+                {asset.change >=
+                    0
+                    ? "+"
+                    : ""}
+                    {asset.change.toFixed(
+                        2
+                    )}
+                    %
+                    </Text>
+                    </View>
+                    </View>
 
-                <ChevronRight
-                size={17}
-                color="#465149"
-                />
-                </Pressable>
+                    <ChevronRight
+                    size={17}
+                    color="#465149"
+                    />
+                    </Pressable>
             ))}
             </View>
 
@@ -508,8 +574,11 @@ export default function HomeScreen({
                 key={`${item.title}-${index}`}
                 style={({ pressed }) => [
                     styles.activityRow,
-                    pressed && styles.cardPressed,
-                    index !== activity.length - 1 &&
+                    pressed &&
+                    styles.cardPressed,
+                    index !==
+                    activity.length -
+                    1 &&
                     styles.activityBorder,
                 ]}
                 onPress={onActivity}
@@ -517,67 +586,91 @@ export default function HomeScreen({
                 <View
                 style={[
                     styles.activityIcon,
-                    item.type === "received" &&
+                    item.type ===
+                    "received" &&
                     styles.receivedIcon,
-                    item.type === "sent" &&
+                    item.type ===
+                    "sent" &&
                     styles.sentIcon,
-                    item.type === "swap" &&
+                    item.type ===
+                    "swap" &&
                     styles.swapIcon,
                 ]}
                 >
-                {item.type === "received" ? (
-                    <ArrowDownLeft
-                    size={17}
-                    color="#7CFFA0"
-                    />
-                ) : item.type === "sent" ? (
-                    <ArrowUpRight
-                    size={17}
-                    color="#D3DDD6"
-                    />
-                ) : (
-                    <Repeat2
-                    size={17}
-                    color="#AEBAB2"
-                    />
-                )}
-                </View>
+                {item.type ===
+                    "received" ? (
+                        <ArrowDownLeft
+                        size={17}
+                        color="#7CFFA0"
+                        />
+                    ) : item.type ===
+                    "sent" ? (
+                        <ArrowUpRight
+                        size={17}
+                        color="#D3DDD6"
+                        />
+                    ) : (
+                        <Repeat2
+                        size={17}
+                        color="#AEBAB2"
+                        />
+                    )}
+                    </View>
 
-                <View style={styles.activityInfo}>
-                <Text style={styles.activityTitle}>
-                {item.title}
-                </Text>
+                    <View
+                    style={
+                        styles.activityInfo
+                    }
+                    >
+                    <Text
+                    style={
+                        styles.activityTitle
+                    }
+                    >
+                    {item.title}
+                    </Text>
 
-                <Text
-                style={styles.activitySubtitle}
-                >
-                {item.subtitle} · {item.time}
-                </Text>
-                </View>
+                    <Text
+                    style={
+                        styles.activitySubtitle
+                    }
+                    >
+                    {item.subtitle} ·{" "}
+                    {item.time}
+                    </Text>
+                    </View>
 
-                <View style={styles.activityValues}>
-                <Text
-                style={[
-                    styles.activityAmount,
-                    item.type === "received" &&
-                    styles.positiveAmount,
-                ]}
-                >
-                {item.amount}
-                </Text>
+                    <View
+                    style={
+                        styles.activityValues
+                    }
+                    >
+                    <Text
+                    style={[
+                        styles.activityAmount,
+                        item.type ===
+                        "received" &&
+                        styles.positiveAmount,
+                    ]}
+                    >
+                    {item.amount}
+                    </Text>
 
-                <Text style={styles.activityValue}>
-                {item.value}
-                </Text>
-                </View>
-                </Pressable>
+                    <Text
+                    style={
+                        styles.activityValue
+                    }
+                    >
+                    {item.value}
+                    </Text>
+                    </View>
+                    </Pressable>
             ))}
             </View>
 
             <View style={styles.bottomSpace} />
             </ScrollView>
 
-            {/* Shared Navigation */}
             <BottomNavigation
             activeTab="home"
             onHome={() => {}}
@@ -624,45 +717,38 @@ const styles = StyleSheet.create({
         flex: 1,
         backgroundColor: "#070B08",
     },
-
     screen: {
         flex: 1,
         backgroundColor: "#070B08",
     },
-
     content: {
         paddingHorizontal: 28,
         paddingTop: 32,
         paddingBottom: 110,
     },
-
     header: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         marginBottom: 22,
     },
-
     greeting: {
         color: "#66736B",
         fontSize: 12,
         fontWeight: "600",
         marginBottom: 3,
     },
-
     username: {
         color: "#F0F5F1",
         fontSize: 20,
         fontWeight: "800",
         letterSpacing: -0.4,
     },
-
     headerActions: {
         flexDirection: "row",
         alignItems: "center",
         gap: 10,
     },
-
     iconButton: {
         width: 42,
         height: 42,
@@ -674,7 +760,6 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         position: "relative",
     },
-
     notificationDot: {
         position: "absolute",
         top: 9,
@@ -684,7 +769,6 @@ const styles = StyleSheet.create({
         borderRadius: 3,
         backgroundColor: "#7CFFA0",
     },
-
     profileAvatar: {
         width: 42,
         height: 42,
@@ -693,17 +777,14 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-
     profileAvatarText: {
         color: "#07100A",
         fontSize: 16,
         fontWeight: "900",
     },
-
     pressed: {
         opacity: 0.7,
     },
-
     portfolioCard: {
         borderRadius: 24,
         backgroundColor: "#0D1510",
@@ -713,33 +794,28 @@ const styles = StyleSheet.create({
         marginBottom: 28,
         overflow: "hidden",
     },
-
     portfolioTopRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "flex-start",
     },
-
     portfolioLabel: {
         color: "#748078",
         fontSize: 12,
         fontWeight: "600",
         marginBottom: 7,
     },
-
     balanceRow: {
         flexDirection: "row",
         alignItems: "center",
         gap: 9,
     },
-
     balance: {
         color: "#F3F7F4",
         fontSize: 30,
         fontWeight: "800",
         letterSpacing: -1,
     },
-
     balanceBadge: {
         width: 40,
         height: 40,
@@ -750,14 +826,12 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-
     changeRow: {
         flexDirection: "row",
         alignItems: "center",
         marginTop: 12,
         gap: 9,
     },
-
     changeBadge: {
         flexDirection: "row",
         alignItems: "center",
@@ -767,24 +841,20 @@ const styles = StyleSheet.create({
         borderRadius: 8,
         backgroundColor: "#14271A",
     },
-
     changeText: {
         color: "#7CFFA0",
         fontSize: 11,
         fontWeight: "800",
     },
-
     changePeriod: {
         color: "#5E6A62",
         fontSize: 11,
     },
-
     chartContainer: {
         height: 125,
         marginTop: 22,
         position: "relative",
     },
-
     chartLines: {
         position: "absolute",
         left: 0,
@@ -793,13 +863,11 @@ const styles = StyleSheet.create({
         bottom: 0,
         justifyContent: "space-between",
     },
-
     chartLine: {
         height: 1,
         backgroundColor: "#17231B",
         width: "100%",
     },
-
     chart: {
         height: "100%",
         flexDirection: "row",
@@ -807,7 +875,6 @@ const styles = StyleSheet.create({
         justifyContent: "space-between",
         paddingHorizontal: 3,
     },
-
     chartPoint: {
         width: 4,
         minHeight: 18,
@@ -816,14 +883,12 @@ const styles = StyleSheet.create({
         opacity: 0.82,
         justifyContent: "flex-start",
     },
-
     chartDot: {
         width: 4,
         height: 4,
         borderRadius: 2,
         backgroundColor: "#B7FFC8",
     },
-
     periodRow: {
         flexDirection: "row",
         justifyContent: "space-between",
@@ -832,63 +897,52 @@ const styles = StyleSheet.create({
         borderTopWidth: 1,
         borderTopColor: "#17231B",
     },
-
     periodButton: {
         minWidth: 42,
         paddingVertical: 6,
         borderRadius: 8,
         alignItems: "center",
     },
-
     periodButtonSelected: {
         backgroundColor: "#17301F",
     },
-
     periodText: {
         color: "#637067",
         fontSize: 10,
         fontWeight: "700",
     },
-
     periodTextSelected: {
         color: "#7CFFA0",
     },
-
     sectionHeader: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
         marginBottom: 12,
     },
-
     sectionTitle: {
         color: "#EEF3EF",
         fontSize: 16,
         fontWeight: "800",
     },
-
     viewAll: {
         color: "#7CFFA0",
         fontSize: 11,
         fontWeight: "700",
     },
-
     actionsRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         marginBottom: 28,
     },
-
     quickAction: {
         width: "23%",
         alignItems: "center",
     },
-
     quickActionPressed: {
         opacity: 0.65,
         transform: [{ scale: 0.96 }],
     },
-
     quickActionIcon: {
         width: 52,
         height: 52,
@@ -900,18 +954,15 @@ const styles = StyleSheet.create({
         justifyContent: "center",
         marginBottom: 7,
     },
-
     quickActionLabel: {
         color: "#8C9890",
         fontSize: 10,
         fontWeight: "600",
     },
-
     assetList: {
         gap: 9,
         marginBottom: 28,
     },
-
     assetCard: {
         minHeight: 74,
         borderRadius: 17,
@@ -922,11 +973,9 @@ const styles = StyleSheet.create({
         alignItems: "center",
         paddingHorizontal: 12,
     },
-
     cardPressed: {
         opacity: 0.7,
     },
-
     assetIcon: {
         width: 43,
         height: 43,
@@ -934,62 +983,51 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-
     assetIconText: {
         fontSize: 21,
         fontWeight: "800",
     },
-
     assetInfo: {
         flex: 1,
         marginLeft: 11,
     },
-
     assetSymbol: {
         color: "#E6ECE8",
         fontSize: 13,
         fontWeight: "800",
     },
-
     assetName: {
         color: "#69766E",
         fontSize: 10,
         marginTop: 3,
     },
-
     assetValues: {
         alignItems: "flex-end",
         marginRight: 9,
     },
-
     assetValue: {
         color: "#E7ECE9",
         fontSize: 13,
         fontWeight: "700",
     },
-
     assetBottomRow: {
         flexDirection: "row",
         alignItems: "center",
         marginTop: 4,
         gap: 7,
     },
-
     assetAmount: {
         color: "#59655E",
         fontSize: 9,
     },
-
     assetChange: {
         color: "#7CFFA0",
         fontSize: 9,
         fontWeight: "700",
     },
-
     negativeChange: {
         color: "#D88989",
     },
-
     activityCard: {
         backgroundColor: "#0D1510",
         borderWidth: 1,
@@ -997,19 +1035,16 @@ const styles = StyleSheet.create({
         borderRadius: 18,
         overflow: "hidden",
     },
-
     activityRow: {
         minHeight: 76,
         flexDirection: "row",
         alignItems: "center",
         paddingHorizontal: 12,
     },
-
     activityBorder: {
         borderBottomWidth: 1,
         borderBottomColor: "#19261E",
     },
-
     activityIcon: {
         width: 40,
         height: 40,
@@ -1017,56 +1052,45 @@ const styles = StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
-
     receivedIcon: {
         backgroundColor: "#14271A",
     },
-
     sentIcon: {
         backgroundColor: "#171C19",
     },
-
     swapIcon: {
         backgroundColor: "#181B1A",
     },
-
     activityInfo: {
         flex: 1,
         marginLeft: 11,
     },
-
     activityTitle: {
         color: "#DCE3DE",
         fontSize: 12,
         fontWeight: "700",
     },
-
     activitySubtitle: {
         color: "#66736B",
         fontSize: 9,
         marginTop: 4,
     },
-
     activityValues: {
         alignItems: "flex-end",
     },
-
     activityAmount: {
         color: "#CDD6D0",
         fontSize: 10,
         fontWeight: "700",
     },
-
     positiveAmount: {
         color: "#7CFFA0",
     },
-
     activityValue: {
         color: "#5C6860",
         fontSize: 9,
         marginTop: 4,
     },
-
     bottomSpace: {
         height: 10,
     },

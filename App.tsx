@@ -54,8 +54,7 @@ type Preferences = {
   darkMode: boolean;
 };
 
-const PREFERENCES_KEY =
-"@kreep_app_preferences";
+const PREFERENCES_KEY = "@kreep_app_preferences";
 
 const DEFAULT_PREFERENCES: Preferences = {
   currency: "USD",
@@ -66,8 +65,7 @@ const DEFAULT_PREFERENCES: Preferences = {
 };
 
 export default function App() {
-  const [screen, setScreen] =
-  useState<Screen>("welcome");
+  const [screen, setScreen] = useState<Screen>("welcome");
 
   const [session, setSession] =
   useState<Session | null>(null);
@@ -95,6 +93,9 @@ export default function App() {
   useState("TXN001");
 
   const [signupUsername, setSignupUsername] =
+  useState("");
+
+  const [signupEmail, setSignupEmail] =
   useState("");
 
   /*
@@ -131,10 +132,6 @@ export default function App() {
 
   /*
    * SAVE LOCAL PREFERENCES
-   *
-   * This gives us fast local persistence.
-   * Supabase is also updated below when a
-   * logged-in user changes a preference.
    */
   useEffect(() => {
     if (!preferencesLoaded) {
@@ -160,6 +157,113 @@ export default function App() {
     preferences,
     preferencesLoaded,
   ]);
+
+  /*
+   * LOAD USER PROFILE + SETTINGS
+   */
+  const loadUserData = async (
+    userId: string
+  ) => {
+    try {
+      const [
+        profileResult,
+        settingsResult,
+      ] = await Promise.all([
+        supabase
+        .from("profiles")
+        .select(
+          "username, email, currency"
+        )
+        .eq("id", userId)
+        .maybeSingle(),
+
+                            supabase
+                            .from("user_settings")
+                            .select(
+                              `
+                              notifications_enabled,
+                              biometric_enabled,
+                              hide_balance,
+                              dark_mode
+                              `
+                            )
+                            .eq("user_id", userId)
+                            .maybeSingle(),
+      ]);
+
+      if (profileResult.error) {
+        console.error(
+          "Failed to load profile:",
+          profileResult.error
+        );
+      }
+
+      if (settingsResult.error) {
+        console.error(
+          "Failed to load settings:",
+          settingsResult.error
+        );
+      }
+
+      const profile =
+      profileResult.data;
+
+      const settings =
+      settingsResult.data;
+
+      /*
+       * Load profile information.
+       */
+      if (profile) {
+        setSignupUsername(
+          profile.username ?? ""
+        );
+
+        setSignupEmail(
+          profile.email ?? ""
+        );
+      }
+
+      /*
+       * Load preferences.
+       */
+      setPreferences(
+        (previous) => ({
+          ...previous,
+
+          ...(profile?.currency
+          ? {
+            currency:
+            profile.currency === "EUR"
+            ? "EUR"
+            : "USD",
+          }
+          : {}),
+
+          ...(settings
+          ? {
+            notificationsEnabled:
+            settings.notifications_enabled,
+
+            biometricEnabled:
+            settings.biometric_enabled,
+
+            hideBalance:
+            settings.hide_balance,
+
+            darkMode:
+            settings.dark_mode,
+          }
+          : {}),
+        })
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load user data:",
+        error
+      );
+    }
+  };
 
   /*
    * RESTORE SUPABASE SESSION
@@ -207,7 +311,7 @@ export default function App() {
     restoreSession();
 
     /*
-     * Listen for login/logout/session changes.
+     * Listen for authentication changes.
      */
     const {
       data: authListener,
@@ -225,6 +329,7 @@ export default function App() {
           );
         } else {
           setSignupUsername("");
+          setSignupEmail("");
         }
       }
     );
@@ -234,100 +339,6 @@ export default function App() {
       authListener.subscription.unsubscribe();
     };
   }, []);
-
-  /*
-   * LOAD USER PROFILE + SETTINGS
-   */
-  const loadUserData = async (
-    userId: string
-  ) => {
-    try {
-      const [
-        profileResult,
-        settingsResult,
-      ] = await Promise.all([
-        supabase
-        .from("profiles")
-        .select(
-          "username, currency"
-        )
-        .eq("id", userId)
-        .maybeSingle(),
-
-                            supabase
-                            .from("user_settings")
-                            .select(
-                              `
-                              notifications_enabled,
-                              biometric_enabled,
-                              hide_balance,
-                              dark_mode
-                              `
-                            )
-                            .eq("user_id", userId)
-                            .maybeSingle(),
-      ]);
-
-      if (profileResult.error) {
-        console.error(
-          "Failed to load profile:",
-          profileResult.error
-        );
-      }
-
-      if (settingsResult.error) {
-        console.error(
-          "Failed to load settings:",
-          settingsResult.error
-        );
-      }
-
-      const profile =
-      profileResult.data;
-
-      const settings =
-      settingsResult.data;
-
-      if (profile) {
-        setSignupUsername(
-          profile.username
-        );
-      }
-
-      setPreferences(
-        (previous) => ({
-          ...previous,
-
-          ...(profile?.currency
-          ? {
-            currency:
-            profile.currency === "EUR"
-            ? "EUR"
-            : "USD",
-          }
-          : {}),
-
-          ...(settings
-          ? {
-            notificationsEnabled:
-            settings.notifications_enabled,
-            biometricEnabled:
-            settings.biometric_enabled,
-            hideBalance:
-            settings.hide_balance,
-            darkMode:
-            settings.dark_mode,
-          }
-          : {}),
-        })
-      );
-    } catch (error) {
-      console.error(
-        "Failed to load user data:",
-        error
-      );
-    }
-  };
 
   /*
    * UPDATE SUPABASE SETTINGS
@@ -348,14 +359,19 @@ export default function App() {
         {
           user_id:
           session.user.id,
+
           notifications_enabled:
           updatedPreferences.notificationsEnabled,
+
           biometric_enabled:
           updatedPreferences.biometricEnabled,
+
           hide_balance:
           updatedPreferences.hideBalance,
+
           dark_mode:
           updatedPreferences.darkMode,
+
           updated_at:
           new Date().toISOString(),
         },
@@ -419,7 +435,7 @@ export default function App() {
   };
 
   /*
-   * CHANGE PREFERENCE
+   * CHANGE PREFERENCES
    */
   const changePreferences = (
     updater: (
@@ -431,14 +447,8 @@ export default function App() {
         const next =
         updater(previous);
 
-        /*
-         * Save settings asynchronously.
-         */
         updateUserSettings(next);
 
-        /*
-         * Currency belongs in profiles.
-         */
         if (
           next.currency !==
           previous.currency
@@ -462,12 +472,18 @@ export default function App() {
   ) {
     return (
       <SafeAreaView
-      style={styles.loadingContainer}
+      style={
+        styles.loadingContainer
+      }
       >
       <View
-      style={styles.loadingContent}
+      style={
+        styles.loadingContent
+      }
       >
-      <Text style={styles.logo}>
+      <Text
+      style={styles.logo}
+      >
       Kreep
       </Text>
 
@@ -492,9 +508,11 @@ export default function App() {
       onBack={() =>
         setScreen("welcome")
       }
+
       onSignIn={() =>
         setScreen("signin")
       }
+
       onSignUp={async (
         username,
         email,
@@ -537,12 +555,12 @@ export default function App() {
             username
           );
 
+          setSignupEmail(
+            email
+          );
+
           /*
-           * If email confirmation is disabled,
-           * Supabase gives us a session immediately.
-           *
-           * If confirmation is enabled, the user
-           * will need to verify their email first.
+           * Email confirmation enabled.
            */
           if (!data.session) {
             Alert.alert(
@@ -562,6 +580,9 @@ export default function App() {
             return;
           }
 
+          /*
+           * Email confirmation disabled.
+           */
           setSession(
             data.session
           );
@@ -596,9 +617,11 @@ export default function App() {
       username={
         signupUsername
       }
+
       onBack={() =>
         setScreen("signup")
       }
+
       onContinue={async (
         profile
       ) => {
@@ -633,13 +656,18 @@ export default function App() {
             {
               id:
               session.user.id,
+
               username:
               signupUsername,
+
               email:
+              signupEmail ||
               session.user
-              .email ??
+              .email ||
               null,
+
               currency,
+
               updated_at:
               new Date().toISOString(),
             },
@@ -677,14 +705,19 @@ export default function App() {
             {
               user_id:
               session.user.id,
+
               notifications_enabled:
               true,
+
               biometric_enabled:
               false,
+
               hide_balance:
               false,
+
               dark_mode:
               true,
+
               updated_at:
               new Date().toISOString(),
             },
@@ -709,7 +742,7 @@ export default function App() {
           }
 
           /*
-           * Update local state too.
+           * Update local state.
            */
           setPreferences(
             (previous) => ({
@@ -744,15 +777,19 @@ export default function App() {
       username={
         signupUsername
       }
+
       currency={
         preferences.currency
       }
+
       onMarkets={() =>
         setScreen("markets")
       }
+
       onProfile={() =>
         setScreen("profile")
       }
+
       onAssetPress={(symbol) => {
         setSelectedAsset(
           symbol as
@@ -764,13 +801,16 @@ export default function App() {
 
         setScreen("asset");
       }}
+
       onActivity={() =>
         setScreen("activity")
       }
+
       onSwap={() => {
         setSwapReturnScreen(
           "home"
         );
+
         setScreen("swap");
       }}
       />
@@ -786,9 +826,11 @@ export default function App() {
       currency={
         preferences.currency
       }
+
       onHome={() =>
         setScreen("home")
       }
+
       onAssetPress={(symbol) => {
         setSelectedAsset(
           symbol as
@@ -800,16 +842,20 @@ export default function App() {
 
         setScreen("asset");
       }}
+
       onActivity={() =>
         setScreen("activity")
       }
+
       onProfile={() =>
         setScreen("profile")
       }
+
       onSwap={() => {
         setSwapReturnScreen(
           "markets"
         );
+
         setScreen("swap");
       }}
       />
@@ -826,23 +872,28 @@ export default function App() {
       currency={
         preferences.currency
       }
+
       onBack={() =>
         setScreen("markets")
       }
+
       onBuy={() =>
         console.log(
           "Buy pressed"
         )
       }
+
       onSell={() =>
         console.log(
           "Sell pressed"
         )
       }
+
       onSwap={() => {
         setSwapReturnScreen(
           "asset"
         );
+
         setScreen("swap");
       }}
       />
@@ -860,6 +911,7 @@ export default function App() {
           swapReturnScreen
         )
       }
+
       onSwapComplete={(
         fromAsset,
         toAsset,
@@ -887,12 +939,14 @@ export default function App() {
       onBack={() =>
         setScreen("home")
       }
+
       onOpenTransaction={(
         id
       ) => {
         setSelectedTransaction(
           id
         );
+
         setScreen(
           "transaction"
         );
@@ -912,6 +966,7 @@ export default function App() {
       transactionId={
         selectedTransaction
       }
+
       onBack={() =>
         setScreen("activity")
       }
@@ -928,37 +983,49 @@ export default function App() {
       username={
         signupUsername
       }
+
+      email={
+        signupEmail
+      }
+
       onBack={() =>
         setScreen("home")
       }
+
       onEditProfile={() =>
         console.log(
           "Edit profile pressed"
         )
       }
+
       onSettings={() =>
         setScreen("settings")
       }
+
       onNotifications={() =>
         console.log(
           "Notifications pressed"
         )
       }
+
       onSecurity={() =>
         console.log(
           "Security pressed"
         )
       }
+
       onPaymentMethods={() =>
         console.log(
           "Payment methods pressed"
         )
       }
+
       onHelp={() =>
         console.log(
           "Help & Support pressed"
         )
       }
+
       onSignOut={async () => {
         try {
           const {
@@ -971,17 +1038,14 @@ export default function App() {
               "Sign Out Failed",
               error.message
             );
+
             return;
           }
 
           setSignupUsername("");
+          setSignupEmail("");
           setSession(null);
 
-          /*
-           * Keep the local preference cache.
-           * The next logged-in user's settings
-           * will be loaded from Supabase.
-           */
           setPreferences(
             DEFAULT_PREFERENCES
           );
@@ -1129,19 +1193,16 @@ export default function App() {
       onBack={() =>
         setScreen("welcome")
       }
+
       onCreateAccount={() =>
         setScreen("signup")
       }
+
       onSignIn={async (
         identifier,
         password
       ) => {
         try {
-          /*
-           * This screen accepts an identifier.
-           * Supabase email/password authentication
-           * requires the email address.
-           */
           const {
             data,
             error,
@@ -1159,6 +1220,7 @@ export default function App() {
               "Sign In Failed",
               error.message
             );
+
             return;
           }
 
@@ -1167,6 +1229,7 @@ export default function App() {
               "Sign In Failed",
               "No active session was created."
             );
+
             return;
           }
 
@@ -1191,6 +1254,7 @@ export default function App() {
           );
         }
       }}
+
       onForgotPassword={() =>
         console.log(
           "Forgot password pressed"
@@ -1208,6 +1272,7 @@ export default function App() {
     onCreateAccount={() =>
       setScreen("signup")
     }
+
     onSignIn={() =>
       setScreen("signin")
     }

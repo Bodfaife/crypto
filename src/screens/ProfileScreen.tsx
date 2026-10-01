@@ -99,7 +99,7 @@ function ProfileRow({
 
 export default function ProfileScreen({
     username,
-    email = "user@example.com",
+    email,
     onBack,
     onEditProfile,
     onSettings,
@@ -198,24 +198,26 @@ export default function ProfileScreen({
         {username || "Username"}
         </Text>
 
-        <Pressable
-        onPress={handleCopyEmail}
-        style={styles.emailRow}
-        >
-        <Mail
-        size={15}
-        color="#8FA59A"
-        />
+        {email ? (
+            <Pressable
+            onPress={handleCopyEmail}
+            style={styles.emailRow}
+            >
+            <Mail
+            size={15}
+            color="#8FA59A"
+            />
 
-        <Text style={styles.email}>
-        {email}
-        </Text>
+            <Text style={styles.email}>
+            {email}
+            </Text>
 
-        <Copy
-        size={13}
-        color="#7CFFA0"
-        />
-        </Pressable>
+            <Copy
+            size={13}
+            color="#7CFFA0"
+            />
+            </Pressable>
+        ) : null}
 
         <View style={styles.verifiedBadge}>
         <ShieldCheck
